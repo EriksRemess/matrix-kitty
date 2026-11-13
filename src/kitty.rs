@@ -96,7 +96,8 @@ impl Animation {
             transmit(
                 output,
                 &format!("a=f,I={number},f=24,o=z,s={width},v={height},r={target},X=1,q=2"),
-                &format!("a=f,I={number},q=2"),
+                // Kitty reads frame-edit fields from the final chunk, not the first.
+                &format!("a=f,r={target},X=1,q=2"),
                 &self.compressed,
             )?;
             write!(output, "\x1b_Ga=a,I={number},s=1,c={next},q=2\x1b\\")?;
@@ -172,13 +173,23 @@ mod tests {
     #[test]
     fn animation_chunks_retain_action_and_obey_payload_limit() {
         let mut output = Vec::new();
-        transmit(&mut output, "a=f,I=9,r=2,q=2", "a=f,I=9,q=2", &[42; 7000]).unwrap();
+        transmit(
+            &mut output,
+            "a=f,I=9,r=2,X=1,q=2",
+            "a=f,r=2,X=1,q=2",
+            &[42; 7000],
+        )
+        .unwrap();
         let text = String::from_utf8(output).unwrap();
         let chunks: Vec<_> = text.split("\x1b\\").filter(|s| !s.is_empty()).collect();
         assert_eq!(chunks.len(), 3);
         for (index, chunk) in chunks.iter().enumerate() {
             let (header, payload) = chunk.split_once(';').unwrap();
-            assert!(header.starts_with("\x1b_Ga=f,I=9,"));
+            assert!(header.starts_with(if index == 0 {
+                "\x1b_Ga=f,I=9,r=2,X=1,q=2,"
+            } else {
+                "\x1b_Ga=f,r=2,X=1,q=2,"
+            }));
             assert!(payload.len() <= 4096 && payload.len() % 4 == 0);
             assert!(header.ends_with(if index == 2 { "m=0" } else { "m=1" }));
         }

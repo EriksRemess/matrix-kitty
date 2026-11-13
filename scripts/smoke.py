@@ -66,6 +66,8 @@ class Terminal:
                 first = self.upload[0]
                 if first.get("a") == "f":
                     assert action == "f", "frame continuation lost a=f"
+                    assert keys.get("r") == first.get("r"), "frame continuation lost its edit target"
+                    assert keys.get("X") == first.get("X"), "frame continuation lost replacement mode"
             self.upload[1].extend(payload)
             if keys.get("m", "0") == "1":
                 return
@@ -327,45 +329,46 @@ def quit_color_query(t):
     assert not t.presented, "rendered despite quitting during the color query"
 
 
-check("RGB, compression, chunking, two frame slots, snapshot parity", frames, "--frames", "12")
-check("pause, resize, restart, resume, quit", controls)
-check("Ctrl-C restores terminal", lambda t: shutdown(t, byte=b"\x03"))
-check("Escape restores terminal", lambda t: shutdown(t, byte=b"\x1b"))
-check("SIGTERM restores terminal", lambda t: shutdown(t, sig=signal.SIGTERM))
-check("unsupported animation restores terminal", reject, reject=True)
-check("probe timeout restores terminal", timeout, respond=False)
-check("--force skips probing", force, "--force", "--frames", "3", respond=False)
-check("Ctrl-C escapes unfinished OSC", lambda t: unfinished_escape(t, b"\x1b]title", b"\x03"))
-check("Ctrl-D escapes unfinished CSI", lambda t: unfinished_escape(t, b"\x1b[1;", b"\x04"))
-check("Escape escapes unfinished APC", lambda t: unfinished_escape(t, b"\x1b_GI=9;", b"\x1b"))
-check("quit works after an escape string expires", lambda t: unfinished_escape(t, b"\x1b]title", b"q", 0.3))
-check("SIGTERM restores terminal while output is blocked", stalled_output)
-for name, key in [("Ctrl-C", b"\x03"), ("q", b"q"), ("Escape", b"\x1b"),
-                  ("Ctrl-D", b"\x04"), ("Ctrl-Z", b"\x1a"),
-                  ("Ctrl-C after unfinished OSC", b"\x1b]title\x03")]:
-    check(f"{name} restores terminal while output is blocked", lambda t, key=key: stalled_output(t, key))
-check("pause and resume survive blocked output", stalled_controls)
-check("explicit foreground and light background", lambda t: colored_frame(t, "#ffffff", queried=False),
-      "--fg", "#f00", "--bg", "#fff", "--frames", "1")
-check("terminal background overrides explicit fallback", lambda t: colored_frame(t, "#18304a"),
-      "--fg", "#f00", "--transparent-bg", "--bg", "#fff", "--frames", "1",
-      background_reply=b"\x1b]11;rgb:1818/3030/4a4a\x07")
-check("fragmented background reply with ST", lambda t: colored_frame(t, "#18304a"),
-      "--fg", "#f00", "--transparent-bg", "--frames", "1",
-      background_reply=[b"\x1b]10;rgb:0/0/0\x07\x1b]11;rgb:18", b"/30/4a\x1b", b"\\"])
-check("background timeout uses explicit fallback", lambda t: colored_frame(t, "#112233"),
-      "--fg", "#f00", "--bg", "#112233", "--transparent-bg", "--frames", "1")
-check("malformed background reply uses default black", lambda t: colored_frame(t, "#000000"),
-      "--fg", "#f00", "--transparent-bg", "--frames", "1",
-      background_reply=b"\x1b]11;rgb:gg/00/00\x07")
-check("--force still queries the background", lambda t: colored_frame(t, "#ffffff", probes=0),
-      "--force", "--fg", "#f00", "--transparent-bg", "--frames", "1", respond=False,
-      background_reply=b"\x1b]11;rgb:f/f/f\x1b\\")
-check("quit while waiting for a background reply", quit_color_query, "--transparent-bg")
-for mode in [[], ["--no-texture"], ["--wireframe"]]:
-    pixels = snapshot("--fg", "#000", "--bg", "#fff", *mode)
-    colors = list(zip(pixels[::3], pixels[1::3], pixels[2::3]))
-    assert (255, 255, 255) in colors
-    assert all(r == g == b for r, g, b in colors), "foreground tint was not applied"
-    assert any(r < 128 for r, _, _ in colors), "dark glyphs vanished on a light background"
-    print(f"PASS black foreground on white background ({mode or ['textured']})")
+if __name__ == "__main__":
+    check("RGB, compression, chunking, two frame slots, snapshot parity", frames, "--frames", "12")
+    check("pause, resize, restart, resume, quit", controls)
+    check("Ctrl-C restores terminal", lambda t: shutdown(t, byte=b"\x03"))
+    check("Escape restores terminal", lambda t: shutdown(t, byte=b"\x1b"))
+    check("SIGTERM restores terminal", lambda t: shutdown(t, sig=signal.SIGTERM))
+    check("unsupported animation restores terminal", reject, reject=True)
+    check("probe timeout restores terminal", timeout, respond=False)
+    check("--force skips probing", force, "--force", "--frames", "3", respond=False)
+    check("Ctrl-C escapes unfinished OSC", lambda t: unfinished_escape(t, b"\x1b]title", b"\x03"))
+    check("Ctrl-D escapes unfinished CSI", lambda t: unfinished_escape(t, b"\x1b[1;", b"\x04"))
+    check("Escape escapes unfinished APC", lambda t: unfinished_escape(t, b"\x1b_GI=9;", b"\x1b"))
+    check("quit works after an escape string expires", lambda t: unfinished_escape(t, b"\x1b]title", b"q", 0.3))
+    check("SIGTERM restores terminal while output is blocked", stalled_output)
+    for name, key in [("Ctrl-C", b"\x03"), ("q", b"q"), ("Escape", b"\x1b"),
+                      ("Ctrl-D", b"\x04"), ("Ctrl-Z", b"\x1a"),
+                      ("Ctrl-C after unfinished OSC", b"\x1b]title\x03")]:
+        check(f"{name} restores terminal while output is blocked", lambda t, key=key: stalled_output(t, key))
+    check("pause and resume survive blocked output", stalled_controls)
+    check("explicit foreground and light background", lambda t: colored_frame(t, "#ffffff", queried=False),
+          "--fg", "#f00", "--bg", "#fff", "--frames", "1")
+    check("terminal background overrides explicit fallback", lambda t: colored_frame(t, "#18304a"),
+          "--fg", "#f00", "--transparent-bg", "--bg", "#fff", "--frames", "1",
+          background_reply=b"\x1b]11;rgb:1818/3030/4a4a\x07")
+    check("fragmented background reply with ST", lambda t: colored_frame(t, "#18304a"),
+          "--fg", "#f00", "--transparent-bg", "--frames", "1",
+          background_reply=[b"\x1b]10;rgb:0/0/0\x07\x1b]11;rgb:18", b"/30/4a\x1b", b"\\"])
+    check("background timeout uses explicit fallback", lambda t: colored_frame(t, "#112233"),
+          "--fg", "#f00", "--bg", "#112233", "--transparent-bg", "--frames", "1")
+    check("malformed background reply uses default black", lambda t: colored_frame(t, "#000000"),
+          "--fg", "#f00", "--transparent-bg", "--frames", "1",
+          background_reply=b"\x1b]11;rgb:gg/00/00\x07")
+    check("--force still queries the background", lambda t: colored_frame(t, "#ffffff", probes=0),
+          "--force", "--fg", "#f00", "--transparent-bg", "--frames", "1", respond=False,
+          background_reply=b"\x1b]11;rgb:f/f/f\x1b\\")
+    check("quit while waiting for a background reply", quit_color_query, "--transparent-bg")
+    for mode in [[], ["--no-texture"], ["--wireframe"]]:
+        pixels = snapshot("--fg", "#000", "--bg", "#fff", *mode)
+        colors = list(zip(pixels[::3], pixels[1::3], pixels[2::3]))
+        assert (255, 255, 255) in colors
+        assert all(r == g == b for r, g, b in colors), "foreground tint was not applied"
+        assert any(r < 128 for r, _, _ in colors), "dark glyphs vanished on a light background"
+        print(f"PASS black foreground on white background ({mode or ['textured']})")

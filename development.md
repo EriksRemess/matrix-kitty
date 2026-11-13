@@ -54,6 +54,12 @@ of at most 4096 bytes. A root image is placed once with `a=T`. Later frames use
 The process generates fresh rain continuously and controls frame presentation;
 terminal storage does not grow with animation duration.
 
+Frame continuation chunks repeat `a=f,r=…,X=1` along with `m` and `q`.
+Kitty 0.48.2 reads the edit target and replacement mode from the final chunk;
+omitting them appends frames instead of editing the two existing slots. This
+compatibility workaround extends the minimal continuation headers described in
+the [protocol](https://sw.kovidgoyal.net/kitty/graphics-protocol/#remote-client).
+
 Startup probes both image loading and animation frame editing. Older terminals
 with only static Kitty graphics support fail with a clear error. `--force` skips
 that probe for terminals known to support animation but unable to return replies.
@@ -131,3 +137,14 @@ performance in a real terminal emulator.
 Color checks compare decoded terminal frames with explicit-color snapshots,
 exercise OSC 11 replies, fallback, and cancellation, and check dark glyphs on a
 light background in textured, solid, and wireframe modes.
+
+When Kitty is installed, also run its actual graphics decoder against the binary:
+
+```sh
+kitty +runpy 'import runpy; runpy.run_path("scripts/kitty-smoke.py", run_name="__main__")'
+```
+
+This uses Kitty's internal test API (tested with 0.48.2) without opening a window.
+It checks every selected frame's pixels, bounded frame storage, resize, and cleanup
+for both single-chunk and chunked uploads. Set `MATRIX_KITTY_BINARY` to test another
+binary. This validates Kitty's decoding and frame selection, not GUI presentation.
