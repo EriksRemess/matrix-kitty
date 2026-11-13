@@ -1,0 +1,18 @@
+The animation model, OpenGL renderer, glyph atlas generation, and kana data
+were adapted from glmatrix-rs 0.1.5 by Eriks Remess and contributors:
+https://github.com/EriksRemess/glmatrix-rs
+
+Source baseline: bfc66ad (local checkout, 2026-11-13).
+The source package declares the MIT license and retains Jamie Zawinski's
+GLMatrix copyright and permission notice, reproduced in LICENSE.
+
+Original GLMatrix: Jamie Zawinski, XScreenSaver.
+The upstream source reference is recorded by glmatrix-rs in its README.
+
+This port replaces Wayland windowing with offscreen EGL rendering, extracts
+the simulation tick from presentation, and adds terminal input, frame encoding,
+Kitty animation transport, and headless snapshots.
+
+src/kana.rs contains monochrome glyph masks rasterized from Noto Sans CJK
+by glmatrix-rs. The Noto font notice and SIL Open Font License 1.1 accompany
+these derived bitmap assets in licenses/OFL-1.1.txt.

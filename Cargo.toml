@@ -1,0 +1,17 @@
+[package]
+name = "matrix-kitty"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.100"
+description = "GLMatrix digital rain rendered in a terminal with Kitty graphics animation"
+repository = "https://github.com/EriksRemess/matrix-kitty"
+license-file = "LICENSE"
+
+[dependencies]
+
+[lints.rust]
+unsafe_op_in_unsafe_fn = "deny"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
