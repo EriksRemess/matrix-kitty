@@ -32,8 +32,14 @@ fn main() {
             .success()
     );
     println!("cargo:rustc-link-search=native={}", out.display());
-    for library in ["static=terminal", "EGL", "GL", "z"] {
+    for library in ["static=terminal", "z"] {
         println!("cargo:rustc-link-lib={library}");
+    }
+    if env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("macos") {
+        println!("cargo:rustc-link-lib=framework=OpenGL");
+    } else {
+        println!("cargo:rustc-link-lib=EGL");
+        println!("cargo:rustc-link-lib=GL");
     }
     println!("cargo:rerun-if-changed=src/terminal.c");
     println!("cargo:rerun-if-env-changed=CC");

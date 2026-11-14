@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Exercise the real binary through a PTY with a small Kitty protocol peer.
 
-Requires Linux, Python 3, and working headless EGL. Does not open a terminal GUI.
+Requires Python 3 and working offscreen OpenGL (EGL on Linux, CGL on macOS).
+Does not open a terminal GUI.
 """
 import base64
 from contextlib import contextmanager
@@ -22,11 +23,20 @@ import zlib
 BINARY = Path(sys.argv[1] if len(sys.argv) > 1 else "target/release/matrix-kitty").resolve()
 
 
+def terminal_settings(fd):
+    settings = termios.tcgetattr(fd)
+    if sys.platform == "darwin":
+        # macOS sets this transient kernel state when ICANON is restored,
+        # even after a plain tty.setraw/tcsetattr round trip with no input.
+        settings[3] &= ~termios.PENDIN
+    return settings
+
+
 class Terminal:
     def __init__(self, *args, reject=False, respond=True, background_reply=None):
         self.master, self.slave = pty.openpty()
         self.resize(80, 24, 960, 540)
-        self.saved = termios.tcgetattr(self.slave)
+        self.saved = terminal_settings(self.slave)
         self.saved_flags = fcntl.fcntl(self.slave, fcntl.F_GETFL)
         env = os.environ.copy()
         env.pop("TMUX", None)
@@ -166,7 +176,7 @@ class Terminal:
         self.drain_for(0.03)
         errors = self.process.stderr.read().decode()
         assert self.process.returncode == expected, errors
-        assert termios.tcgetattr(self.slave) == self.saved, "termios was not restored"
+        assert terminal_settings(self.slave) == self.saved, "termios was not restored"
         assert fcntl.fcntl(self.slave, fcntl.F_GETFL) == self.saved_flags, "terminal descriptor flags changed"
         assert b"\x1b[?25h\x1b[?1049l" in self.wire, "cursor or main screen not restored"
         assert not self.images, "image storage was not released"
@@ -215,6 +225,8 @@ def controls(t):
     assert len(t.presented) == paused, "paused animation still transmits"
     t.resize(60, 30, 900, 900)
     t.until(lambda: any(w == 180 and h == 180 for w, h, _ in t.presented))
+    pixels = next(pixels for w, h, pixels in t.presented if (w, h) == (180, 180))
+    assert any(pixels), "resizing lost the rendered glyphs"
     t.send(b"r ")
     t.until(lambda: len(t.presented) >= paused + 4)
     t.send(b"q")
@@ -283,7 +295,7 @@ def stalled_output(t, key=None):
             t.send(key)
         # Do not pump here: exit must not depend on the peer reading output.
         assert t.process.wait(timeout=2) == 0, t.process.stderr.read().decode()
-        assert termios.tcgetattr(t.slave) == t.saved
+        assert terminal_settings(t.slave) == t.saved
         assert fcntl.fcntl(t.slave, fcntl.F_GETFL) == t.saved_flags
         assert not t.process.stderr.read(), "cancellation printed an error"
 

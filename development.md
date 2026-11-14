@@ -2,11 +2,14 @@
 
 ## Build
 
-- Linux and Rust 1.100 or newer.
+- Linux or macOS and Rust 1.100 or newer.
 - A C compiler and `ar` for the small POSIX terminal shim.
-- EGL 1.5, compatibility-profile OpenGL, and zlib development libraries.
+- On macOS, install Apple's Command Line Tools (`xcode-select --install`).
+  Rendering uses the system OpenGL framework through CGL; zlib is also supplied
+  by macOS. No Homebrew graphics libraries are needed.
+- On Linux, EGL 1.5, compatibility-profile OpenGL, and zlib development libraries.
   On Debian/Ubuntu the packages are `build-essential libegl-dev libgl-dev zlib1g-dev`.
-- An EGL driver that supports device or surfaceless offscreen rendering.
+- On Linux, an EGL driver that supports device or surfaceless offscreen rendering.
   Mesa software rendering works when no GPU is available.
 
 There are no Cargo dependencies or runtime font dependencies. The original
@@ -21,7 +24,9 @@ cargo build --release --offline
 
 The renderer is adapted from `glmatrix-rs` 0.1.5 (base commit `bfc66ad`).
 It keeps the original rain simulation and glyph atlas, renders into an offscreen
-EGL buffer, and reads back pixels for terminal display. The C shim handles
+buffer (EGL on Linux, CGL with a framebuffer object on macOS), and reads back
+pixels for terminal display. Both backends use a legacy/compatibility OpenGL
+context for the original fixed-function renderer. The C shim handles
 POSIX terminal settings, input polling, window dimensions, and signals.
 
 Terminal output uses a separate nonblocking descriptor, leaving the shell's
@@ -100,8 +105,9 @@ Save an actual rendered frame as a binary PPM image:
 cargo run --release --offline -- --seed 42 --snapshot /tmp/matrix.ppm
 ```
 
-This needs EGL but no terminal graphics support or display server. Snapshot
-dimensions are exactly `--width` × `--height`. Output reports the selected
+This needs working offscreen OpenGL but no terminal graphics support or window.
+Linux uses headless EGL without a display server; macOS uses the system CGL backend.
+Snapshot dimensions are exactly `--width` × `--height`. Output reports the selected
 OpenGL renderer. To explicitly select Mesa software rendering on Debian/Ubuntu:
 
 ```sh
@@ -130,7 +136,10 @@ and verifies cleanup after keys, SIGTERM, rejection, and probe timeout. It also
 checks quit controls after unfinished escape sequences and termination with a
 full PTY output queue, using both signals and keyboard quit controls. It checks
 restoration of terminal settings and descriptor flags, and preservation of pause
-and resume through output stalls. It needs Python 3 and working headless EGL.
+and resume through output stalls. It needs Python 3 and working offscreen OpenGL.
+On macOS, terminal-setting comparisons ignore the transient `PENDIN` state that
+the kernel sets when restoring canonical input; all other settings and descriptor
+flags must match.
 It does not establish visual playback or
 performance in a real terminal emulator.
 

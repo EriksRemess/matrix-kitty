@@ -212,7 +212,7 @@ Usage: matrix-kitty [options]
 
 Original single-dash options and +fog/+waves/+rotate/+texture/+flip work too.
 Controls: q / Esc / Ctrl-C quit; Space pauses; Backspace / r restarts rain.
-Requires Linux, EGL/OpenGL, zlib, and a terminal with Kitty animation support.
+Requires Linux or macOS, OpenGL, zlib, and a terminal with Kitty animation support.
 ";
 
 #[cfg(test)]

@@ -1,4 +1,4 @@
-mod egl;
+mod context;
 mod gl;
 mod kana;
 mod kitty;
@@ -45,7 +45,7 @@ fn run() -> Result<(), Box<dyn Error>> {
     let (width, height) = size.pixels();
     let (width, height) = options.render_size(width, height);
     // Declaration order keeps the GL context alive until Matrix releases its texture.
-    let mut context = egl::Context::new(width, height)?;
+    let mut context = context::Context::new(width, height)?;
     let mut matrix = matrix::Matrix::new(options.clone());
     matrix.init_gl();
     matrix.reshape(width, height);

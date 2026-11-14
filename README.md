@@ -4,7 +4,7 @@
 [glmatrix-rs](https://github.com/EriksRemess/glmatrix-rs). Includes falling glyphs,
 depth fog, brightness waves, and a rotating camera.
 
-Requires Linux and **Ghostty 1.4+ or Kitty**. Run directly in the terminal;
+Requires Linux or macOS and **Ghostty 1.4+ or Kitty**. Run directly in the terminal;
 tmux and screen passthrough are not supported.
 
 ## Install

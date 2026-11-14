@@ -1,4 +1,5 @@
 #define _DEFAULT_SOURCE
+#define _DARWIN_C_SOURCE /* Expose cfmakeraw on macOS alongside POSIX APIs. */
 #define _POSIX_C_SOURCE 200809L
 #include <errno.h>
 #include <fcntl.h>
@@ -42,7 +43,15 @@ void gm_terminal_close(void) {
 int gm_terminal_open(void) {
     if (tcgetattr(STDIN_FILENO, &saved) < 0) return -1;
     /* Reopen instead of dup: O_NONBLOCK must not affect the shell's descriptors. */
+#ifdef __APPLE__
+    /* /dev/fd/1 duplicates on macOS; reopen the actual tty for independent flags. */
+    char path[1024];
+    int error = ttyname_r(STDOUT_FILENO, path, sizeof(path));
+    if (error) { errno = error; return -1; }
+    output_fd = open(path, O_WRONLY | O_NONBLOCK | O_NOCTTY | O_CLOEXEC);
+#else
     output_fd = open("/proc/self/fd/1", O_WRONLY | O_NONBLOCK | O_NOCTTY | O_CLOEXEC);
+#endif
     if (output_fd < 0) return -1;
     interrupted = 0;
     struct sigaction action = {0};
